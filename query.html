@@ -1,0 +1,42 @@
+<div id="hdtbSum">
+{% if showMore %}
+  <div id="hdtb_msb"><div class="hdtb_mitem"><a onclick="threeOrMore('show_more')">less patterns</a></div><div class="hdtb_mitem hdtb_msel">more patterns</div></div>
+{% else %}
+  <div id="hdtb_msb"><div class="hdtb_mitem hdtb_msel">less patterns</div><div class="hdtb_mitem"><a onclick="threeOrMore('show_more')">more patterns</a></div></div>
+{% endif %}
+{% if showMoreExp %}
+  <div id="hdtb_msb"><div class="hdtb_mitem"><a onclick="threeOrMore('show_more_exp')">less examples</a></div><div class="hdtb_mitem hdtb_msel">more examples</div></div>
+{% else %}
+  <div id="hdtb_msb"><div class="hdtb_mitem hdtb_msel">less examples</div><div class="hdtb_mitem"><a onclick="threeOrMore('show_more_exp')">more examples</a></div></div>
+{% endif %}
+{% if entries[0][1][0].example[0].translate != None%}
+{% if lang == 'en' %}
+  <div id="hdtb_msb"><div class="hdtb_mitem hdtb_msel">English</div><div class="hdtb_mitem"><a onclick="changeLang('zh')">英漢</a></div><div class="hdtb_mitem"><a onclick="changeLang('jp')">英和</a></div></div>
+{% elif lang == 'zh' %}
+  <div id="hdtb_msb"><div class="hdtb_mitem"><a onclick="changeLang('en')">English</a></div><div class="hdtb_mitem hdtb_msel">英漢</div><div class="hdtb_mitem"><a onclick="changeLang('jp')">英和</a></div></div>
+{% elif lang == 'jp' %}
+  <div id="hdtb_msb"><div class="hdtb_mitem"><a onclick="changeLang('en')">English</a></div><div class="hdtb_mitem"><a onclick="changeLang('zh')">英漢</a></div><div class="hdtb_mitem hdtb_msel">英和</div></div>
+{% endif %}
+{% endif %}
+</div>
+{% for pos, ngrams in entries[:1] %}
+  {% for ngram in (ngrams if showMore else ngrams[:3])  %}
+    {% if corp == 'phd' %}
+      <p class="ngram">{{"[%s] %s"%(pos,ngram.ngram)}}{{' '}}<font size="3" color="green">{{ngram.count}}:1</font></p>
+    {% else %}
+      <p class="ngram">{{"[%s] %s"%(pos,ngram.ngram)}}{{' '}}<font size="3" color="green">{{ngram.count}}</font></p>
+    {% endif %}
+    {% for example in (ngram.example if showMoreExp else ngram.example[:2]) %}
+      <a>
+      <p class="example">
+      <font class="prev">{{ example.prev }}</font>
+      <font class="main">{{ example.ngram }}</font>
+      <font class="post">{{ example.post }}</font>
+      <font class="translate">{{ example.getTranslate(lang) }}</font>
+      <font class="c1">{{ example.c1 }}</font>
+      <font class="c2">{{ example.c2 }}</font>
+      </p>
+      </a>
+    {% endfor %}
+  {% endfor %}
+{% endfor %}
