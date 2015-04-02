@@ -1,2 +1,2 @@
 heroku pg:reset DATABASE;
-heroku pg:push linggle HEROKU_POSTGRESQL_RED --app follow-me;
+heroku pg:push rocmewtwo HEROKU_POSTGRESQL_NAVY --app writebest;

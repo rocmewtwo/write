@@ -10,26 +10,26 @@ DBNAME = "linggle"
 JSON, NAME = range(2)
 
 BNC = 'bnc'
-CITESEER = 'citeseer'
+CITE = 'citeseer'
 PHD = 'phd'
 PHD_NF = 'PHD_NF'
-CITE_TRANS = 'cite_trans'
+#CITE = 'cite_trans'
 
 corpus = [
-['diff/bnc.json', BNC],
-#['diff/citeseer.json', CITESEER],
+['diff/akl.bnc.json', BNC],
+['diff/akl.citeseer.json', CITE],
 ['diff/overuse.json', PHD],
-['diff/phd.nf.json', PHD_NF],
-['patterns_with_zh_ja.json', CITE_TRANS],
+['diff/akl.phd.json', PHD_NF],
+#['patterns_with_zh_ja.json', CITE],
 ]
 
-corpNames = [(BNC,"general"), (CITE_TRANS,"academic"), (PHD,"overuse"), (PHD_NF,"learner")]
+corpNames = [(BNC,"general"), (CITE,"academic"), (PHD,"overuse"), (PHD_NF,"learner")]
 nameToCorp = dict([i[::-1] for i in corpNames])
 corps = zip(*corpNames)[0]
 
 urlparse.uses_netloc.append("postgres")
-url = urlparse.urlparse(os.environ["DATABASE_URL"])
-#url = urlparse.urlparse('postgres://vdqdjsixutvevb:TQMkmAd8mW7dfWNLWmvI2vnNJh@ec2-184-73-165-193.compute-1.amazonaws.com:5432/d2t44ilh4v3g5u')
+#url = urlparse.urlparse(os.environ["DATABASE_URL"])
+url = urlparse.urlparse('postgres://ltaswzxdzaqyhh:j7JCpVF5VfCFUCBpzJjACSU-8v@ec2-50-19-249-214.compute-1.amazonaws.com:5432/dfqa5o9b2mt6l1') ## writeBest
 
 def connectDB():
   con = psycopg2.connect(
@@ -52,10 +52,10 @@ def createDB():
     pass
 
   cur.execute('CREATE DATABASE %s'%DBNAME)
-  cur.close()
-  con.close()
+#  cur.close()
+#  con.close()
 
-  con, cur = connectDB()
+#  con, cur = connectDB()
   for corp in corpus:
     cur.execute("CREATE TABLE %s (word varchar , data json);"%corp[NAME])
   return con, cur
@@ -78,10 +78,10 @@ class DBInterface:
       self.__init__()
       return self.execute(cmd)
 
-  def search(self, word, TBNAME=CITE_TRANS):
+  def search(self, word, TBNAME=CITE):
     import dataWrapper
     if TBNAME not in corps:
-        TBNAME = CITE_TRANS
+        TBNAME = CITE
     if type(word) == list:
       print "SELECT * FROM %s WHERE word IN ('%s');"%(TBNAME, "','".join(word))
       res = self.execute("SELECT * FROM %s WHERE word IN ('%s');"%(TBNAME, "','".join(word)))
@@ -176,7 +176,6 @@ def readPatterns(f='patterns_with_zh_ja.json'):
 def genDB():
   con, cur = createDB()
   for corp in corpus:
-    print corp
     f, TBNAME = corp
     d, m = readPatterns(f)
     json.dump(m, open('syn_%s.json'%TBNAME,'w+'))
