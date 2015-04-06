@@ -1,13 +1,13 @@
-import psycopg2
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import json
 import os
+import os.path
 from collections import defaultdict
-import urlparse
-
-DBNAME = "linggle"
+import sqlite3
+import word2vec
 
 JSON, NAME = range(2)
+
+DBFILE = 'writebest.db'
 
 BNC = 'bnc'
 CITE = 'citeseer'
@@ -16,65 +16,46 @@ PHD_NF = 'PHD_NF'
 #CITE = 'cite_trans'
 
 corpus = [
-['diff/akl.bnc.json', BNC],
-['diff/akl.citeseer.json', CITE],
 ['diff/overuse.json', PHD],
 ['diff/akl.phd.json', PHD_NF],
+['diff/akl.bnc.json', BNC],
+['diff/akl.citeseer.json', CITE],
 #['patterns_with_zh_ja.json', CITE],
 ]
+
+word2vec_model = {'bnc':'bnc.bin', 'citeseer':'citeseer.bin', 'phd':'phd.bin', 'PHD_NF':'phd.bin'}
+model = ''
 
 corpNames = [(BNC,"general"), (CITE,"academic"), (PHD,"overuse"), (PHD_NF,"learner")]
 nameToCorp = dict([i[::-1] for i in corpNames])
 corps = zip(*corpNames)[0]
 
-urlparse.uses_netloc.append("postgres")
-#url = urlparse.urlparse(os.environ["DATABASE_URL"])
-url = urlparse.urlparse('postgres://ltaswzxdzaqyhh:j7JCpVF5VfCFUCBpzJjACSU-8v@ec2-50-19-249-214.compute-1.amazonaws.com:5432/dfqa5o9b2mt6l1') ## writeBest
-
-def connectDB():
-  con = psycopg2.connect(
-    database=url.path[1:],
-    user=url.username,
-    password=url.password,
-    host=url.hostname,
-    port=url.port)
-  cur = con.cursor()
-  return con, cur
-
 def createDB():
-  con = psycopg2.connect(host = 'localhost')
-
-  con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+  con = sqlite3.connect(DBFILE)
   cur = con.cursor()
-  try:
-    cur.execute('DROP DATABASE %s'%DBNAME)
-  except:
-    pass
 
-  cur.execute('CREATE DATABASE %s'%DBNAME)
-#  cur.close()
-#  con.close()
-
-#  con, cur = connectDB()
   for corp in corpus:
-    cur.execute("CREATE TABLE %s (word varchar , data json);"%corp[NAME])
+    cur.execute("DROP TABLE if exists %s;"%corp[NAME])
+    cur.execute("CREATE TABLE %s (word varchar , data text);"%corp[NAME])
   return con, cur
 
 class DBInterface:
   def __init__(self):
-    self.con, self.cur = connectDB()
+    self.con = sqlite3.connect(DBFILE, check_same_thread=False)
+    self.cur = self.con.cursor()
 
   def execute(self, cmd):
     try:
-      self.cur.execute(cmd)
-      return self.cur.fetchall()
-    except psycopg2.ProgrammingError:
+      self.cur = self.cur.execute(cmd)
+      r = self.cur.fetchall()
+      return [(eval(r[0][1]),),]
+    except sqlite3.ProgrammingError:
       self.con.rollback()
       return []
-    except psycopg2.InternalError:
+    except sqlite3.InternalError:
       self.con.rollback()
       return self.execute(cmd)
-    except psycopg2.InterfaceError:
+    except sqlite3.InterfaceError:
       self.__init__()
       return self.execute(cmd)
 
@@ -83,11 +64,11 @@ class DBInterface:
     if TBNAME not in corps:
         TBNAME = CITE
     if type(word) == list:
-      print "SELECT * FROM %s WHERE word IN ('%s');"%(TBNAME, "','".join(word))
+#       print "SELECT * FROM %s WHERE word IN ('%s');"%(TBNAME, "','".join(word))
       res = self.execute("SELECT * FROM %s WHERE word IN ('%s');"%(TBNAME, "','".join(word)))
       word = word[0]
     else:
-      print "SELECT * FROM %s WHERE word = '%s';"%(TBNAME, word)
+#       print "SELECT * FROM %s WHERE word = '%s';"%(TBNAME, word)
       res = self.execute("SELECT * FROM %s WHERE word = '%s';"%(TBNAME, word))
     if len(res) == 0:
       return None
@@ -95,17 +76,31 @@ class DBInterface:
       r = dataWrapper.Patterns(res, word)
       return None if len(r.ngrams) == 0 else r
 
-  def close(self):
-    self.con.close()
+  def __del__(self):
     self.cur.close()
+    self.con.close()
 
-def connect():
-  return DBInterface()
+def thesauru(word):
+  global model
+  thesauru_list=[]
+  if word == '_':
+    return ['_']
+  else:
+    if word in model.vocab:
+      indexes, metrics = model.cosine(word)
+      if word in ['a','an', 'the']:
+        return ['a','an', 'the']
+      else:
+        for i in indexes:
+          thesauru_list.append(model.vocab[i])
+        thesauru_list.append(word)
+        return thesauru_list
+    else:
+        return ['_']
 
 def sim(i, j):
-  import rephrase
   i = i.split('/')
-  j = rephrase.thesauru(j.encode('ascii'))
+  j = thesauru(j.encode('ascii'))
   return len(set(i).intersection(j)) > 0
 
 def combine(i, j):
@@ -174,9 +169,12 @@ def readPatterns(f='patterns_with_zh_ja.json'):
   return d, m
 
 def genDB():
+  global model
   con, cur = createDB()
   for corp in corpus:
     f, TBNAME = corp
+    print f, TBNAME
+    model = word2vec.load(word2vec_model[TBNAME])
     d, m = readPatterns(f)
     json.dump(m, open('syn_%s.json'%TBNAME,'w+'))
 
@@ -185,8 +183,8 @@ def genDB():
       cur.execute("""INSERT INTO %s (word, data) VALUES('%s','%s');"""%(TBNAME, word.replace("'","''"), json.dumps(data).replace("'","''")))
       con.commit()
     #cur.execute("SELECT * FROM test;")
-  con.close()
   cur.close()
+  con.close()
 
 if __name__ == '__main__':
   connectDB()

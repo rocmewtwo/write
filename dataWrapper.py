@@ -62,7 +62,7 @@ class Patterns:
     self.ngrams = defaultdict(list)
     self.word = word
     for data in datas:
-      for pos, ngrams in data[1].iteritems():
+      for pos, ngrams in data[0].iteritems():
         #if ngrams[0] < 100:
 	#  continue
         for ngram in ngrams[1:]:

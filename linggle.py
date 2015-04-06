@@ -12,9 +12,9 @@ DEBUG = False
 app = Flask(__name__)
 app.config.from_object(__name__)
 app.config.from_envvar('FLASKR_SETTINGS', silent=True)
-#app.config['DEBUG'] = True
-db = sql.connect()
-syn = json.load(open('syn.json'))
+app.config['DEBUG'] = True
+db = sql.DBInterface()
+syn = json.load(open('syn_bnc.json'))
 
 def home(*args, **kwargs):
   if 'writeaway' in request.headers['Host']:
@@ -37,7 +37,6 @@ def more():
   corp = request.cookies.get('corp')
   if request.cookies.get('corp') not in sql.corpNames:
     resp.set_cookie('corp', sql.BNC)
-    corp = sql.BNC
   return home(corps = sql.corpNames, selectedCorp = corp)
 
 @app.route('/<corp>')
@@ -84,4 +83,6 @@ def internalError(e):
     return 'ERROR!'
 
 if __name__ == '__main__':
-  app.run()
+    app.run(host='0.0.0.0', port=50001)
+#   app.run()
+
